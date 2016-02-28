@@ -33,9 +33,28 @@ public class SmartBrokenLight : AmbientObject
     // Reference to the light
     private Light mainLight;
 
+    // Neighboring lights
+    public GameObject[] neighbors;
+
+
     // Use this for initialization
     void Start () {
         mainLight = GetComponent<Light>();
+        
+        // Start on the starting state
+        currState = startState;
+        SetInitData();
+
+        // Add new states and transitions
+        AddNewStates();
+        AddNewTransitions();
+
+        // Set the light to its starting state
+        IEnumerator next;
+        SafeStartCoroutine(states.TryGetValue(startState, out next) ? next : LightOn());
+
+        // Add to BlackBoard
+        RegisterToBlackBoard();
     }
 	
 	// Update is called once per frame
@@ -153,6 +172,29 @@ public class SmartBrokenLight : AmbientObject
 
     /* Utilities
      */
+    // Override to add actual information to the BlackBoard
+    protected override bool RegisterToBlackBoard()
+    {
+        // Get basic properties
+        List<string> properties = new List<string>
+        {
+            currState.ToString(),
+            Time.deltaTime.ToString(),
+            Time.deltaTime.ToString(),
+            "false"
+        };
+
+        // Get names of neighbors
+        foreach (GameObject n in neighbors)
+        {
+            properties.Add(n.GetComponent<SmartBrokenLight>().objectName));
+        }
+
+        // Attempt to register the object
+        selfKey = bb.Register(self, properties, objectName);
+        return selfKey != null;
+    }
+    
     // Check whether or not this object is overdue for a flicker
     public bool OverdueForFlicker(float lastFlicker)
     {
