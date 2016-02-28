@@ -16,22 +16,27 @@ public class SmartBrokenLight : AmbientObject
     // States that the light can be in
     public enum States { ON, DEAD, FLICKER };
 
+    // Information about STRIP
+    public string flickerStripName = "";
+
     // Max time since last flicker
-    public float maxLastFlicker = 3.0f,
-                 flickerDuration = 3.0f;
+    public float maxLastFlicker = 5.0f,
+                 flickerDuration = 2.0f;
 
     // How long to wait between flickers
-    public float maxFlickerWait = 0.25f;
+    public float maxFlickerWait = 0.75f,
+                 flickerCooldown = 3.0f,
+                 minFlickerDuration = 1.0f;
 
     // Probability of flickering or reverting to ON
-    public float probOfFlicker = 0.1f,
+    public float probOfFlicker = 0.2f,
                  probOfStopFlicker = 0.1f;
 
-    // Probability fo breaking
-    public float probBreak = 0.1f;
+    // Probability of breaking
+    public float probBreak = 0.05f;
 
     // Reference to the light
-    private Light mainLight;
+    private Light mainLight = null;
 
     // Neighboring lights
     public GameObject[] neighbors;
@@ -39,8 +44,6 @@ public class SmartBrokenLight : AmbientObject
 
     // Use this for initialization
     void Start () {
-        mainLight = GetComponent<Light>();
-        
         // Start on the starting state
         currState = startState;
         SetInitData();
@@ -54,13 +57,13 @@ public class SmartBrokenLight : AmbientObject
         SafeStartCoroutine(states.TryGetValue(startState, out next) ? next : LightOn());
 
         // Add to BlackBoard
-        RegisterToBlackBoard();
+        registered = RegisterToBlackBoard();
     }
 	
 	// Update is called once per frame
 	void Update () {
         // Try and flicker
-        strips[selfKey].Action(self);
+        strips[flickerStripName].Action(self);
     }
 
 
@@ -187,24 +190,12 @@ public class SmartBrokenLight : AmbientObject
         // Get names of neighbors
         foreach (GameObject n in neighbors)
         {
-            properties.Add(n.GetComponent<SmartBrokenLight>().objectName));
+            properties.Add(n.GetComponent<SmartBrokenLight>().objectName);
         }
 
         // Attempt to register the object
         selfKey = bb.Register(self, properties, objectName);
         return selfKey != null;
-    }
-    
-    // Check whether or not this object is overdue for a flicker
-    public bool OverdueForFlicker(float lastFlicker)
-    {
-        return ((Time.time - lastFlicker) > maxLastFlicker);
-    }
-
-    // Check whether or not this object is overdue for the flicker to stop
-    public bool OverdueForFlickerStop(float lastFlicker)
-    {
-        return ((Time.time - lastFlicker) > flickerDuration);
     }
 
     // Override to add new states to the FSM
@@ -249,6 +240,10 @@ public class SmartBrokenLight : AmbientObject
     protected override void SetInitData()
     {
         base.SetInitData();
+
+        if (mainLight == null)
+            mainLight = GetComponent<Light>();
+
         mainLight.enabled = true;
     }
 }

@@ -14,7 +14,7 @@ public class Strip : MonoBehaviour
     public string id = "GenericStrip";
 
     // A reference to the Blackboard
-    public GameObject aeControl;
+    public GameObject blackBoard;
     protected BlackBoard bb;
 
 
@@ -22,7 +22,7 @@ public class Strip : MonoBehaviour
     void Awake()
     {
         // Get a reference to the Blackboard when this script starts up
-        bb = aeControl.GetComponent<BlackBoard>();
+        bb = blackBoard.GetComponent<BlackBoard>();
     }
 
 

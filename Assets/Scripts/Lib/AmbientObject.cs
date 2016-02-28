@@ -5,11 +5,11 @@ using System.Collections.Generic;
 public class AmbientObject : SmartObject {
 
     // Basic information
-    public new string objectName = "AmbientObject";
     protected string selfKey = null;
+    protected bool registered = false;
     
     // A reference to the Blackboard
-    public GameObject aeControl;
+    public GameObject blackBoard;
     protected BlackBoard bb;
 
     // A reference to scripts that this object can interact with
@@ -30,7 +30,7 @@ public class AmbientObject : SmartObject {
         SetInitData();
 
         // Get a reference to the Blackboard when this script starts up
-        bb = aeControl.GetComponent<BlackBoard>();
+        bb = blackBoard.GetComponent<BlackBoard>();
 
         // Grab all STRIPs that this object can use
         foreach (GameObject g in stripControl)
