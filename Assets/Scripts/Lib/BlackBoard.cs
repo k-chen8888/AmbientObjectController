@@ -125,15 +125,36 @@ public class BlackBoard : MonoBehaviour
 		return false;
 	}
 	
-	// Add a key to the dictionary
-	public void AddProperty(string key, List<string> values)
+	// Append properties to the List<string> at a given key
+	public bool AddProperty(string key, List<string> values)
 	{
-		flags.Add(key, values);
-	}
+        List<string> properties;
+        if (flags.TryGetValue(key, out properties))
+        {
+            properties.AddRange(values);
+            return true;
+        }
+
+        return false;
+    }
+
+    // Destructively remove a property at a given index, shifting everything after it forward by 1 index
+    // To non-destructively remove a property, use UpdateProperty(key, index, null) instead
+    public bool RemoveProperty(string key, int index)
+    {
+        List<string> properties;
+        if (flags.TryGetValue(key, out properties))
+        {
+            properties.RemoveAt(index);
+            return true;
+        }
+
+        return false;
+    }
 	
-	// Remove a key from the dictionary
-	public bool RemoveProperty(string key)
+	// Remove an object from the dictionary by removing its key from the dictionary
+	public bool RemoveObject(string key)
 	{
-		return flags.Remove(key);
+		return flags.Remove(key) || objects.Remove(key);
 	}
 }
