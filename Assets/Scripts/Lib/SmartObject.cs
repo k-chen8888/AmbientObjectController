@@ -182,7 +182,8 @@ public abstract class SmartObject : MonoBehaviour
     // Must be overridden to have any effect
     protected virtual void AddNewStates()
     {
-
+        // By default, remove the old default start state
+        states.Remove(INIT_STATE);
     }
 
     // Add new transitions to the machine
@@ -190,6 +191,36 @@ public abstract class SmartObject : MonoBehaviour
     protected virtual void AddNewTransitions()
     {
 
+    }
+    // Alternatively, add key/value pairs
+    protected virtual void AddNewTransitions(List<KeyValuePair<int, int>> transitionPairs)
+    {
+        List<int> nextStates = null;
+        int currKey = NOT_A_STATE;
+
+        foreach (KeyValuePair<int, int> transition in transitionPairs)
+        {
+            // If the key changes and a list was created, add to a new list
+            if (transition.Key != currKey)
+            {
+                if (nextStates != null)
+                {
+                    // Flush the changes if the list did not already exist in the dictionary
+                    if (!transitions.ContainsKey(currKey))
+                        transitions.Add(currKey, nextStates);
+
+                    // Check if there's a new list to add to; otherwise, make one
+                    currKey = transition.Key;
+                    if (transitions.TryGetValue(currKey, out nextStates))
+                        nextStates = new List<int>();
+                }
+                else
+                    nextStates = new List<int>();
+            }
+
+            // Add the transition on this iteration
+            nextStates.Add(transition.Value);
+        }
     }
 
     // Safely starts a coroutine

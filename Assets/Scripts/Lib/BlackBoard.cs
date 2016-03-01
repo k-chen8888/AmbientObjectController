@@ -103,17 +103,19 @@ public class BlackBoard : MonoBehaviour
 
         return false;
     }
-	
-	// Checks that a key maps to the given values
-	public bool IsMatch(string key, List<string> values)
+
+    // Checks that a key maps to the given values
+    // Optionally, check if a portion of the values match (starting at start and going up to but not including end)
+    public bool IsMatch(string key, List<string> values, int start = 0, int end = -1)
 	{
 		List<string> test;
 		if (flags.TryGetValue(key, out test))
 		{
-			if (values.Count != test.Count)
+            int length = (end > -1 ? end - start : end);
+			if (length < 1 || length > test.Count || end > test.Count)
 				return false;
 			
-			for (int i = 0; i < values.Count; i++)
+			for (int i = start; i < (end > -1 ? end : values.Count); i++)
 			{
 				if (test[i] != values[i])
 					return false;
