@@ -84,14 +84,14 @@ public class SmartBrokenLight : AmbientObject
     protected IEnumerator LightFlicker(string[] args = null)
     {
         float nextChange = Time.time;
-
+        
         while (currState == (int)States.FLICKER)
         {
             // Just keep on keeping on...
-            if (Time.time > nextChange)
+            if (Time.time >= nextChange)
             {
                 mainLight.enabled = !mainLight.enabled;
-                nextChange += Random.Range(0, maxFlickerWait);
+                nextChange += Random.Range(0.0f, maxFlickerWait);
             }
             yield return null;
         }
@@ -119,29 +119,26 @@ public class SmartBrokenLight : AmbientObject
         ResetObject();
         
         if (SafeStartCoroutine(nextState))
-        {
             currState = nextState;
-        }
         else
-        {
-            currState = startState;
             StartCoroutine(LightOn());
-        }
 
         nextState = NOT_A_STATE;
         yield break;
     }
 
     // Externally generate a transition to the next state
-    public bool InduceTransition(int next)
+    public override bool InduceTransition(int next)
     {
         nextState = next;
+        // Start the next state
         if (ExistsTransition(nextState))
         {
-            // Start the next state
-            if (SafeStartCoroutine(nextState))
+            // Complete change to state
+            currState = next;
+            if (SafeStartCoroutine(currState))
             {
-                // Complete change to state
+                nextState = NOT_A_STATE;
                 return true;
             }
         }

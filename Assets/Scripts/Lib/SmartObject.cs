@@ -86,7 +86,7 @@ public abstract class SmartObject : MonoBehaviour
      * These states are included by default
      */
     // A generic state that doesn't really do anything...
-    // Override this with an actual initial state
+    // Override this with an actual initial state, or (even better) add your own
     protected virtual IEnumerator InitialState(string[] args = null)
     {
         while (true)
@@ -134,6 +134,13 @@ public abstract class SmartObject : MonoBehaviour
         }
     }
 
+    // Method for externally causing a transition
+    public virtual bool InduceTransition(int next)
+    {
+        // Does nothing until overridden, but use with caution!
+        return false;
+    }
+
 
     /* Common operations
      */
@@ -148,18 +155,15 @@ public abstract class SmartObject : MonoBehaviour
     {
         // Grab all possible values
         List<int> possible = null;
-        transitions.TryGetValue(currState, out possible);
-
-        // Nowhere to go
-        if (possible == null)
-            return false;
-
-        // Try to find nextState in list
-        foreach (int state in possible)
+        if (transitions.TryGetValue(currState, out possible))
         {
-            // Exit on find
-            if (state == nextState)
-                return true;
+            // Try to find nextState in list
+            foreach (int state in possible)
+            {
+                // Exit on find
+                if (state == nextState)
+                    return true;
+            }
         }
 
         // Not in dictionary
@@ -230,8 +234,7 @@ public abstract class SmartObject : MonoBehaviour
     protected bool SafeStartCoroutine(int key, string[] args = null)
     {
         System.Func<string[], IEnumerator> next;
-        
-        if ((states.TryGetValue(key, out next)))
+        if (states.TryGetValue(key, out next))
         {
             StartCoroutine(next(args));
             return true;
@@ -245,8 +248,7 @@ public abstract class SmartObject : MonoBehaviour
     {
         return currState;
     }
-
-
+    
     // Movement Easing equation: y = x^a / (x^a + (1-x)^a)
     //
     // Takes x values between 0 and 1 and maps them to y values also between 0 and 1
@@ -260,7 +262,7 @@ public abstract class SmartObject : MonoBehaviour
         return Mathf.Pow(x, a) / (Mathf.Pow(x, a) + Mathf.Pow(1 - x, a));
     }
 
-    // Compare behaviors
+    // Compare SmartObjects
     public override bool Equals(object obj)
     {
         // Check references
