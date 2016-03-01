@@ -53,8 +53,9 @@ public class SmartBrokenLight : AmbientObject
         AddNewTransitions();
 
         // Set the light to its starting state
-        IEnumerator next;
-        SafeStartCoroutine(states.TryGetValue(startState, out next) ? next : LightOn());
+        if (!SafeStartCoroutine(startState, null))
+            StartCoroutine(LightOn());
+
 
         // Add to BlackBoard
         registered = RegisterToBlackBoard();
@@ -64,83 +65,67 @@ public class SmartBrokenLight : AmbientObject
 	void Update () {
         // Try and flicker
         strips[flickerStripName].Action(self);
+        print(currState);
     }
 
 
     /* States */
-    protected IEnumerator LightOn()
+    protected IEnumerator LightOn(string[] args = null)
     {
-        while (true)
+        while (currState == (int)States.ON)
         {
-            if (currState == (int)States.ON)
-            {
-                mainLight.enabled = true;
-                yield return null;
-            }
-            else
-            {
-                yield return null;
-            }
+            mainLight.enabled = true;
+            yield return null;
         }
+
+        yield break;
     }
 
-    protected IEnumerator LightFlicker()
+    protected IEnumerator LightFlicker(string[] args = null)
     {
         float nextChange = Time.time;
 
-        while (true)
+        while (currState == (int)States.FLICKER)
         {
-            if (currState == (int)States.FLICKER)
+            // Just keep on keeping on...
+            if (Time.time > nextChange)
             {
-                // Just keep on keeping on...
-                if (Time.time > nextChange)
-                {
-                    mainLight.enabled = !mainLight.enabled;
-                    nextChange += Random.Range(0, maxFlickerWait);
-                }
-                yield return null;
+                mainLight.enabled = !mainLight.enabled;
+                nextChange += Random.Range(0, maxFlickerWait);
             }
-            else
-            {
-                yield return null;
-            }
+            yield return null;
         }
+
+        yield break;
     }
 
-    protected IEnumerator LightDead()
+    protected IEnumerator LightDead(string[] args = null)
     {
-        while (true)
+        while (currState == (int)States.DEAD)
         {
-            if (currState == (int)States.DEAD)
-            {
-                // Can't go anywhere anymore, also the light is permanently off
-                mainLight.enabled = false;
-                yield return null;
-            }
-            else
-            {
-                yield return null;
-            }
+            // Can't go anywhere anymore, also the light is permanently off
+            mainLight.enabled = false;
+            yield return null;
         }
+
+        yield break;
     }
 
     // Because a custom starting configuration was defined, need to override LeaveBadState()
-    protected override IEnumerator LeaveBadState()
+    protected override IEnumerator LeaveBadState(string[] args = null)
     {
         StopAllCoroutines();
         currState = nextState;
         ResetObject();
-
-        IEnumerator next;
-        if (states.TryGetValue(nextState, out next))
+        
+        if (SafeStartCoroutine(nextState))
         {
             currState = nextState;
-            SafeStartCoroutine(next);
         }
         else
         {
             currState = startState;
-            SafeStartCoroutine(LightOn());
+            StartCoroutine(LightOn());
         }
 
         nextState = NOT_A_STATE;
@@ -153,22 +138,17 @@ public class SmartBrokenLight : AmbientObject
         nextState = next;
         if (ExistsTransition(nextState))
         {
-            IEnumerator coroutine;
-
             // Start the next state
-            if (states.TryGetValue(nextState, out coroutine))
+            if (SafeStartCoroutine(nextState))
             {
                 // Complete change to state
-                currState = nextState;
-                nextState = NOT_A_STATE;
-                SafeStartCoroutine(coroutine);
                 return true;
             }
         }
 
         // Whoops! Try to recover...
         nextState = startState;
-        SafeStartCoroutine(LeaveBadState());
+        StartCoroutine(LeaveBadState(null));
         return false;
     }
 
@@ -206,12 +186,12 @@ public class SmartBrokenLight : AmbientObject
 
         // Replace the old default LeaveBadState()
         states.Remove(BAD_STATE);
-        states.Add(BAD_STATE, LeaveBadState());
+        states.Add(BAD_STATE, LeaveBadState);
 
         // Add the new states
-        states.Add((int)States.ON, LightOn());
-        states.Add((int)States.FLICKER, LightFlicker());
-        states.Add((int)States.DEAD, LightDead());
+        states.Add((int)States.ON, LightOn);
+        states.Add((int)States.FLICKER, LightFlicker);
+        states.Add((int)States.DEAD, LightDead);
     }
 
     // Override to add new transitions to the FSM

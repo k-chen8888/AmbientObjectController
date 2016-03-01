@@ -87,7 +87,7 @@ public abstract class SmartObject : MonoBehaviour
      */
     // A generic state that doesn't really do anything...
     // Override this with an actual initial state
-    protected virtual IEnumerator InitialState(string[] args)
+    protected virtual IEnumerator InitialState(string[] args = null)
     {
         while (true)
         {
@@ -97,7 +97,7 @@ public abstract class SmartObject : MonoBehaviour
     }
 
     // Gets out of bad states (default to going to INIT_STATE)
-    protected virtual IEnumerator LeaveBadState(string[] args)
+    protected virtual IEnumerator LeaveBadState(string[] args = null)
     {
         // Kill everything
         StopAllCoroutines();
@@ -227,7 +227,7 @@ public abstract class SmartObject : MonoBehaviour
     }
 
     // Automatically starts a coroutine by looking it up in the dictionary and giving the result some arguments
-    protected bool SafeStartCoroutine(int key, string[] args)
+    protected bool SafeStartCoroutine(int key, string[] args = null)
     {
         System.Func<string[], IEnumerator> next;
         

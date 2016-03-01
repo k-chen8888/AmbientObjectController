@@ -115,14 +115,6 @@ public class AmbientFlicker : Strip
                 nextState = (int)SmartBrokenLight.States.ON;
             }
 
-            if (LightIsFlicker(properties))
-            {
-                print(stopFlicker);
-            }
-            
-            //print("Flicker: " + flicker);
-            //print("StopFlicker: " + stopFlicker);
-
             if (nextState > -1)
             {
                 bb.UpdateProperty(sbl.GetKey(), (int)TupleElem.STATE, nextState.ToString());

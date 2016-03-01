@@ -24,8 +24,8 @@ public class AmbientObject : SmartObject {
         self = gameObject;
 
         // Set up the SmartObject
-        states.Add(BAD_STATE, LeaveBadState());
-        states.Add(INIT_STATE, InitialState());
+        states.Add(BAD_STATE, LeaveBadState);
+        states.Add(INIT_STATE, InitialState);
 
         SetInitData();
 
