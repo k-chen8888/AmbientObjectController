@@ -22,9 +22,8 @@ public abstract class SmartObject : MonoBehaviour
     protected static int INIT_STATE = 0; // All objects, by default, start out on this state
     public int startState;
     protected int currState;
-    protected IEnumerator prevRoutine, currRoutine;
     protected int nextState = NOT_A_STATE;
-    protected Dictionary<int, IEnumerator> states = new Dictionary<int, IEnumerator>();
+    protected Dictionary<int, System.Func<string[], IEnumerator>> states = new Dictionary<int, System.Func<string[], IEnumerator>>();
     protected Dictionary<int, List<int>> transitions = new Dictionary<int, List<int>>
     {
         { BAD_STATE, new List<int> (new int[] { INIT_STATE }) }
@@ -43,8 +42,8 @@ public abstract class SmartObject : MonoBehaviour
     // Always runs on startup
     void Awake()
     {
-        states.Add(BAD_STATE, LeaveBadState());
-        states.Add(INIT_STATE, InitialState());
+        states.Add(BAD_STATE, LeaveBadState);
+        states.Add(INIT_STATE, InitialState);
 
         SetInitData();
     }
@@ -87,8 +86,8 @@ public abstract class SmartObject : MonoBehaviour
      * These states are included by default
      */
     // A generic state that doesn't really do anything...
-    // Override this with an actual initial state
-    protected virtual IEnumerator InitialState()
+    // Override this with an actual initial state, or (even better) add your own
+    protected virtual IEnumerator InitialState(string[] args = null)
     {
         while (true)
         {
@@ -98,20 +97,20 @@ public abstract class SmartObject : MonoBehaviour
     }
 
     // Gets out of bad states (default to going to INIT_STATE)
-    protected virtual IEnumerator LeaveBadState()
+    protected virtual IEnumerator LeaveBadState(string[] args = null)
     {
+        // Kill everything
         StopAllCoroutines();
-        currState = nextState;
         ResetObject();
 
-        IEnumerator next = null;
-        if (states.TryGetValue(nextState, out next))
-            yield return StartCoroutine(next);
-        else
-            yield return StartCoroutine(InitialState());
-
+        // Reset to the initial state
+        currState = nextState;
         nextState = NOT_A_STATE;
-        yield break;
+        System.Func<string[], IEnumerator> next;
+        if (states.TryGetValue(currState, out next))
+            yield return StartCoroutine(next(null));
+        else
+            yield return StartCoroutine(InitialState(null));
     }
 
 
@@ -121,14 +120,25 @@ public abstract class SmartObject : MonoBehaviour
     // Single action
     protected virtual IEnumerator ChangeState()
     {
-        IEnumerator next = null;
-        if (states.TryGetValue(nextState, out next))
-            yield return StartCoroutine(next);
+        if (!SafeStartCoroutine(nextState, null))
+        {
+            // Successfully moved to the next state
+            nextState = NOT_A_STATE;
+            yield return null;
+        }
         else
-            yield return StartCoroutine(InitialState());
+        {
+            // Whoops! Try to recover...
+            nextState = INIT_STATE;
+            yield return StartCoroutine(LeaveBadState(null));
+        }
+    }
 
-        nextState = NOT_A_STATE;
-        yield break;
+    // Method for externally causing a transition
+    public virtual bool InduceTransition(int next)
+    {
+        // Does nothing until overridden, but use with caution!
+        return false;
     }
 
 
@@ -145,18 +155,15 @@ public abstract class SmartObject : MonoBehaviour
     {
         // Grab all possible values
         List<int> possible = null;
-        transitions.TryGetValue(currState, out possible);
-
-        // Nowhere to go
-        if (possible == null)
-            return false;
-
-        // Try to find nextState in list
-        foreach (int state in possible)
+        if (transitions.TryGetValue(currState, out possible))
         {
-            // Exit on find
-            if (state == nextState)
-                return true;
+            // Try to find nextState in list
+            foreach (int state in possible)
+            {
+                // Exit on find
+                if (state == nextState)
+                    return true;
+            }
         }
 
         // Not in dictionary
@@ -223,37 +230,13 @@ public abstract class SmartObject : MonoBehaviour
         }
     }
 
-    // Safely starts a coroutine
-    // Can be done using (1) an IEnumerator or (2) an index in the dictionary and a new IEnumerator instance to replace it
-    // Note: IEnumerator coroutines can only be started once, which means that the IEnumerator needs to be replaced
-    protected void SafeStartCoroutine(IEnumerator next)
+    // Automatically starts a coroutine by looking it up in the dictionary and giving the result some arguments
+    protected bool SafeStartCoroutine(int key, string[] args = null)
     {
-        prevRoutine = currRoutine;
-        currRoutine = next;
-        StartCoroutine(currRoutine);
-
-        if (prevRoutine != null)
+        System.Func<string[], IEnumerator> next;
+        if (states.TryGetValue(key, out next))
         {
-            StopCoroutine(prevRoutine);
-            prevRoutine = null;
-        }
-    }
-    protected bool SafeStartCoroutine(int key)
-    {
-        IEnumerator next;
-        
-        if ((states.TryGetValue(key, out next)))
-        {
-            prevRoutine = currRoutine;
-            currRoutine = next;
-            StartCoroutine(currRoutine);
-
-            if (prevRoutine != null)
-            {
-                StopCoroutine(prevRoutine);
-                prevRoutine = null;
-            }
-
+            StartCoroutine(next(args));
             return true;
         }
 
@@ -265,8 +248,7 @@ public abstract class SmartObject : MonoBehaviour
     {
         return currState;
     }
-
-
+    
     // Movement Easing equation: y = x^a / (x^a + (1-x)^a)
     //
     // Takes x values between 0 and 1 and maps them to y values also between 0 and 1
@@ -280,7 +262,7 @@ public abstract class SmartObject : MonoBehaviour
         return Mathf.Pow(x, a) / (Mathf.Pow(x, a) + Mathf.Pow(1 - x, a));
     }
 
-    // Compare behaviors
+    // Compare SmartObjects
     public override bool Equals(object obj)
     {
         // Check references
