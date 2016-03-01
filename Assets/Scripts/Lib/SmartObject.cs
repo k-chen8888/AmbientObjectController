@@ -22,9 +22,8 @@ public abstract class SmartObject : MonoBehaviour
     protected static int INIT_STATE = 0; // All objects, by default, start out on this state
     public int startState;
     protected int currState;
-    protected IEnumerator prevRoutine, currRoutine;
     protected int nextState = NOT_A_STATE;
-    protected Dictionary<int, IEnumerator> states = new Dictionary<int, IEnumerator>();
+    protected Dictionary<int, System.Func<string[], IEnumerator>> states = new Dictionary<int, System.Func<string[], IEnumerator>>();
     protected Dictionary<int, List<int>> transitions = new Dictionary<int, List<int>>
     {
         { BAD_STATE, new List<int> (new int[] { INIT_STATE }) }
@@ -43,8 +42,8 @@ public abstract class SmartObject : MonoBehaviour
     // Always runs on startup
     void Awake()
     {
-        states.Add(BAD_STATE, LeaveBadState());
-        states.Add(INIT_STATE, InitialState());
+        states.Add(BAD_STATE, LeaveBadState);
+        states.Add(INIT_STATE, InitialState);
 
         SetInitData();
     }
@@ -88,7 +87,7 @@ public abstract class SmartObject : MonoBehaviour
      */
     // A generic state that doesn't really do anything...
     // Override this with an actual initial state
-    protected virtual IEnumerator InitialState()
+    protected virtual IEnumerator InitialState(string[] args)
     {
         while (true)
         {
@@ -98,20 +97,20 @@ public abstract class SmartObject : MonoBehaviour
     }
 
     // Gets out of bad states (default to going to INIT_STATE)
-    protected virtual IEnumerator LeaveBadState()
+    protected virtual IEnumerator LeaveBadState(string[] args)
     {
+        // Kill everything
         StopAllCoroutines();
-        currState = nextState;
         ResetObject();
 
-        IEnumerator next = null;
-        if (states.TryGetValue(nextState, out next))
-            yield return StartCoroutine(next);
-        else
-            yield return StartCoroutine(InitialState());
-
+        // Reset to the initial state
+        currState = nextState;
         nextState = NOT_A_STATE;
-        yield break;
+        System.Func<string[], IEnumerator> next;
+        if (states.TryGetValue(currState, out next))
+            yield return StartCoroutine(next(null));
+        else
+            yield return StartCoroutine(InitialState(null));
     }
 
 
@@ -121,14 +120,18 @@ public abstract class SmartObject : MonoBehaviour
     // Single action
     protected virtual IEnumerator ChangeState()
     {
-        IEnumerator next = null;
-        if (states.TryGetValue(nextState, out next))
-            yield return StartCoroutine(next);
+        if (!SafeStartCoroutine(nextState, null))
+        {
+            // Successfully moved to the next state
+            nextState = NOT_A_STATE;
+            yield return null;
+        }
         else
-            yield return StartCoroutine(InitialState());
-
-        nextState = NOT_A_STATE;
-        yield break;
+        {
+            // Whoops! Try to recover...
+            nextState = INIT_STATE;
+            yield return StartCoroutine(LeaveBadState(null));
+        }
     }
 
 
@@ -223,37 +226,14 @@ public abstract class SmartObject : MonoBehaviour
         }
     }
 
-    // Safely starts a coroutine
-    // Can be done using (1) an IEnumerator or (2) an index in the dictionary and a new IEnumerator instance to replace it
-    // Note: IEnumerator coroutines can only be started once, which means that the IEnumerator needs to be replaced
-    protected void SafeStartCoroutine(IEnumerator next)
+    // Automatically starts a coroutine by looking it up in the dictionary and giving the result some arguments
+    protected bool SafeStartCoroutine(int key, string[] args)
     {
-        prevRoutine = currRoutine;
-        currRoutine = next;
-        StartCoroutine(currRoutine);
-
-        if (prevRoutine != null)
-        {
-            StopCoroutine(prevRoutine);
-            prevRoutine = null;
-        }
-    }
-    protected bool SafeStartCoroutine(int key)
-    {
-        IEnumerator next;
+        System.Func<string[], IEnumerator> next;
         
         if ((states.TryGetValue(key, out next)))
         {
-            prevRoutine = currRoutine;
-            currRoutine = next;
-            StartCoroutine(currRoutine);
-
-            if (prevRoutine != null)
-            {
-                StopCoroutine(prevRoutine);
-                prevRoutine = null;
-            }
-
+            StartCoroutine(next(args));
             return true;
         }
 
